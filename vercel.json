@@ -12,6 +12,7 @@
   ],
   "functions": {
     "api/send-otp.ts": { "maxDuration": 30 },
-    "api/verify-otp.ts": { "maxDuration": 30 }
+    "api/verify-otp.ts": { "maxDuration": 30 },
+    "api/video-proxy.ts": { "maxDuration": 300 }
   }
 }

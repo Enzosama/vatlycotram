@@ -19,6 +19,8 @@ interface InteractiveQuizViewProps {
   lessonTitle: string;
   isLessonCompleted: boolean;
   onCompleteLesson: () => void;
+  // Báo kết quả nộp bài lên component cha (để gate mở khóa bài mới)
+  onQuizResult?: (r: { submitted: boolean; passed: boolean; percentage: number }) => void;
 }
 
 // Chuẩn hóa chuỗi so sánh không phân biệt hoa thường và khoảng trắng
@@ -35,6 +37,7 @@ export const InteractiveQuizView: React.FC<InteractiveQuizViewProps> = ({
   lessonTitle,
   isLessonCompleted,
   onCompleteLesson,
+  onQuizResult,
 }) => {
   const [selectedOptions, setSelectedOptions] = useState<Record<string, number>>({});
   const [fillInBlanks, setFillInBlanks] = useState<Record<string, Record<number, string>>>({});
@@ -206,7 +209,9 @@ export const InteractiveQuizView: React.FC<InteractiveQuizViewProps> = ({
   const handleSubmit = () => {
     setIsSubmitted(true);
     const res = calculateResults();
-    if (res.percentage >= 70) {
+    const passed = res.percentage > 50;
+    onQuizResult?.({ submitted: true, passed, percentage: res.percentage });
+    if (passed) {
       confetti({
         particleCount: 60,
         spread: 70,
@@ -222,7 +227,11 @@ export const InteractiveQuizView: React.FC<InteractiveQuizViewProps> = ({
     setMatchingAnswers({});
     setTrueFalseAnswers({});
     setIsSubmitted(false);
+    onQuizResult?.({ submitted: false, passed: false, percentage: 0 });
   };
+
+  // Đủ điều kiện mở khóa bài mới: đã nộp bài và đạt trên 50%
+  const passedThreshold = !!(isSubmitted && results && results.percentage > 50);
 
   return (
     <div className="space-y-6">
@@ -587,11 +596,12 @@ export const InteractiveQuizView: React.FC<InteractiveQuizViewProps> = ({
         <div className="flex items-center gap-3">
           {!isSubmitted ? (
             <button
+              id="btn-submit-mini-quiz"
               onClick={handleSubmit}
               className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs transition flex items-center gap-2 cursor-pointer"
             >
               <Check className="w-4 h-4" />
-              <span>Kiểm tra kết quả</span>
+              <span>Nộp bài</span>
             </button>
           ) : (
             <button
@@ -608,20 +618,32 @@ export const InteractiveQuizView: React.FC<InteractiveQuizViewProps> = ({
               Bạn đạt: <strong className="text-blue-700 font-extrabold">{results.totalScore}/{results.maxScore}</strong> {isFinalExam10Scale ? 'điểm' : 'câu đúng'}
             </span>
           )}
+          {isSubmitted && !passedThreshold && (
+            <span className="text-[11px] font-medium text-rose-600">
+              Bạn cần đạt trên 50% để hoàn thành bài. Hãy làm lại bài luyện tập và nộp lại.
+            </span>
+          )}
         </div>
 
-        {/* Complete Lesson & Unlock Next */}
+        {/* Complete Lesson & Unlock Next — chỉ bật khi đã nộp bài và đạt trên 50% */}
         <button
           onClick={onCompleteLesson}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-            isLessonCompleted
-              ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
-              : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
+          disabled={!passedThreshold}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition ${
+            passedThreshold
+              ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs cursor-pointer'
+              : 'bg-slate-200 text-slate-400 cursor-not-allowed'
           }`}
         >
-          <CheckCircle2 className="w-4 h-4 text-emerald-200" />
-          <span>{isLessonCompleted ? 'Đã hoàn thành bài học này' : 'Hoàn thành bài & Mở khóa tiếp theo'}</span>
-          <ArrowRight className="w-3.5 h-3.5 ml-0.5" />
+          <CheckCircle2 className="w-4 h-4" />
+          <span>
+            {isLessonCompleted
+              ? 'Đã hoàn thành bài học này'
+              : passedThreshold
+              ? 'Hoàn thành bài & Mở khóa tiếp theo'
+              : 'Cần nộp bài & đạt trên 50%'}
+          </span>
+          {passedThreshold && <ArrowRight className="w-3.5 h-3.5 ml-0.5" />}
         </button>
       </div>
     </div>

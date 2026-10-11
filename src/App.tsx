@@ -247,7 +247,7 @@ export default function App() {
   // Cổng đăng nhập: học sinh phải đăng nhập trước khi vào nội dung học tập.
   // Đặt AUTH_ENABLED = false để tạm thời vượt qua phần đăng nhập khi điều chỉnh web.
   // Khi nào cần bật lại cho học sinh, chỉ cần đổi về true.
-  const AUTH_ENABLED = false;
+  const AUTH_ENABLED = true;
   if (AUTH_ENABLED && !authStudent) {
     return <LoginPage onLoginSuccess={handleLoginSuccess} />;
   }

@@ -120,7 +120,8 @@ export const VideoLearningView: React.FC<VideoLearningViewProps> = ({
   const [collapsedModules, setCollapsedModules] = useState<Record<string, boolean>>({});
   const [lockedAlertMessage, setLockedAlertMessage] = useState<string | null>(null);
   const [miniQuizAnswers, setMiniQuizAnswers] = useState<Record<string, number>>({});
-  const [miniQuizSubmitted, setMiniQuizSubmitted] = useState(false);
+  // Mini-test đã nộp VÀ đạt trên 50% (từ callback InteractiveQuizView) — điều kiện mở khóa bài mới
+  const [miniQuizPassed, setMiniQuizPassed] = useState(false);
   const [userNote, setUserNote] = useState('');
   // ID học sinh đang hoạt động — ghi chú lưu riêng cho từng người
   const currentStudentId = getSessionStudent()?.id || getCurrentStudent().id;
@@ -139,8 +140,11 @@ export const VideoLearningView: React.FC<VideoLearningViewProps> = ({
   const [customVideos, setCustomVideos] = useState<Record<string, string>>(() => getCustomLessonVideos());
 
   const videoRef = useRef<HTMLVideoElement>(null);
+  // YouTube IFrame Player API — đo tiến độ xem thật qua getCurrentTime/getDuration
+  const ytPlayerRef = useRef<any>(null);
+  const ytIframeId = 'yt-player-' + course.id + '-' + activeLessonId;
   // Xác nhận "đã xem hết video" — bắt buộc trước khi được phép hoàn thành bài.
-  // Video MP4 trực tiếp tự tick qua onEnded; iframe (Drive/NotebookLM/YouTube) phải tick tay.
+  // MP4/Drive proxy: tự tick qua onTimeUpdate ≥90%; YouTube: poll YT API ≥90%; NotebookLM: tick tay.
   const [videoWatched, setVideoWatched] = useState(false);
   const [watchedTickError, setWatchedTickError] = useState(false);
   // Thời lượng thực tế của video (đọc từ player khi metadata load)
@@ -165,7 +169,76 @@ export const VideoLearningView: React.FC<VideoLearningViewProps> = ({
     setVideoWatched(false);
     setWatchedTickError(false);
     setActualDuration(null);
+    setMiniQuizPassed(false);
   }, [currentLesson.id, effectiveVideoUrl]);
+
+  // ── YouTube IFrame Player API: poll tiến độ xem, tự tick ≥90% ──
+  // Chỉ chạy khi lesson là video YouTube. Load script 1 lần, poll 5s getCurrentTime/getDuration.
+  React.useEffect(() => {
+    if (videoSource.type !== 'youtube' || !videoSource.videoId) return;
+
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
+    let cancelled = false;
+
+    const startPolling = () => {
+      if (pollTimer) clearInterval(pollTimer);
+      pollTimer = setInterval(() => {
+        const p = ytPlayerRef.current;
+        if (!p || cancelled || typeof p.getCurrentTime !== 'function') return;
+        try {
+          const t = p.getCurrentTime() as number;
+          const d = p.getDuration() as number;
+          if (d > 0 && t / d >= 0.9) {
+            setVideoWatched(true);
+            setActualDuration((prev) => prev ?? `${Math.floor(d / 60)}:${String(Math.floor(d % 60)).padStart(2, '0')}`);
+            if (pollTimer) clearInterval(pollTimer);
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }, 5000);
+    };
+
+    const initPlayer = () => {
+      const YT = (window as any).YT;
+      if (!YT || !YT.Player) return;
+      ytPlayerRef.current = new YT.Player(ytIframeId, {
+        videoId: videoSource.videoId,
+        playerVars: { autoplay: 1, rel: 0, modestbranding: 1 },
+        events: { onReady: startPolling },
+      });
+    };
+
+    const w = window as any;
+    if (w.YT && w.YT.Player) {
+      initPlayer();
+    } else {
+      // Load script 1 lần, chờ onYouTubeIframeAPIReady
+      if (!w.__ytApiLoading) {
+        w.__ytApiLoading = true;
+        const tag = document.createElement('script');
+        tag.src = 'https://www.youtube.com/iframe_api';
+        document.head.appendChild(tag);
+      }
+      const prevCb = w.onYouTubeIframeAPIReady;
+      w.onYouTubeIframeAPIReady = () => {
+        prevCb?.();
+        if (!cancelled) initPlayer();
+      };
+    }
+
+    return () => {
+      cancelled = true;
+      if (pollTimer) clearInterval(pollTimer);
+      try {
+        ytPlayerRef.current?.destroy?.();
+      } catch (e) {
+        console.error(e);
+      }
+      ytPlayerRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentLesson.id, effectiveVideoUrl, videoSource.type, videoSource.videoId]);
 
   // Helper to check if a lesson is unlocked
   // "Mở bài mới sau khi học xong bài cũ": Lesson k is unlocked if k === 0 OR lesson k-1 is completed!
@@ -188,7 +261,7 @@ export const VideoLearningView: React.FC<VideoLearningViewProps> = ({
       onSelectLesson(lesson.id);
       setLockedAlertMessage(null);
       setMiniQuizAnswers({});
-      setMiniQuizSubmitted(false);
+      setMiniQuizPassed(false);
     } else {
       setLockedAlertMessage(
         `Bài học "${lesson.title}" đang bị khóa! Theo nguyên tắc mở khóa tuần tự, bạn cần xem và hoàn thành bài học trước.`
@@ -197,17 +270,129 @@ export const VideoLearningView: React.FC<VideoLearningViewProps> = ({
     }
   };
 
+  // Tick tay xác nhận "đã xem" — CHỈ dùng cho NotebookLM (artifact iframe, không phải video player, không đo được tiến độ).
+  // Drive/YouTube đã chuyển sang đo tiến độ thật (auto-tick ≥90%) nên không cần nút này.
+  const renderWatchedTickButton = () => (
+    <div className="absolute bottom-3 right-3 z-20">
+      {videoWatched ? (
+        <span className="flex items-center gap-1.5 bg-emerald-600/95 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg shadow-lg">
+          <CheckCircle2 className="w-3.5 h-3.5" /> Đã xem hết video
+        </span>
+      ) : (
+        <button
+          id="btn-tick-watched"
+          onClick={() => setVideoWatched(true)}
+          title="Bài dạng sơ đồ tư duy — vui lòng xem và xác nhận đã xem để tiếp tục"
+          className="flex items-center gap-1.5 bg-slate-900/90 hover:bg-slate-900 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg border border-white/30 shadow-lg transition"
+        >
+          <PlayCircle className="w-3.5 h-3.5" /> Đã xem hết video
+        </button>
+      )}
+    </div>
+  );
+
+  // Controls overlay cho <video> (dùng chung cho MP4 trực tiếp và Drive proxy)
+  const renderVideoControls = () => (
+    <div
+      onClick={() => setShowControls((v) => !v)}
+      className={`absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent transition-opacity flex flex-col justify-between p-3 sm:p-4 cursor-pointer ${
+        showControls ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+      }`}
+    >
+      <div className="flex items-center justify-between pointer-events-auto">
+        <span className="text-xs bg-black/60 px-2.5 py-1 rounded-md text-white font-medium">
+          {currentLesson.title}
+        </span>
+        <span className="text-xs bg-blue-600/80 px-2 py-0.5 rounded text-white font-bold">
+          {actualDuration || '—'}
+        </span>
+      </div>
+
+      {/* Bottom control bar */}
+      <div className="flex items-center justify-between gap-3 pointer-events-auto">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              togglePlay();
+            }}
+            className="w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition"
+          >
+            {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
+          </button>
+
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (videoRef.current) videoRef.current.currentTime -= 10;
+            }}
+            className="p-1.5 text-slate-300 hover:text-white"
+            title="Lùi 10 giây"
+          >
+            <RotateCcw className="w-4 h-4" />
+          </button>
+
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (videoRef.current) {
+                videoRef.current.muted = !isMuted;
+                setIsMuted(!isMuted);
+              }
+            }}
+            className="p-1.5 text-slate-300 hover:text-white"
+          >
+            {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+          </button>
+        </div>
+
+        {/* Speed selector */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center bg-white/10 rounded-lg p-0.5 text-[11px] font-bold">
+            {[1, 1.25, 1.5, 2].map((spd) => (
+              <button
+                key={spd}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSpeedChange(spd);
+                }}
+                className={`px-2 py-0.5 rounded transition ${
+                  playbackSpeed === spd ? 'bg-blue-600 text-white' : 'text-slate-300 hover:text-white'
+                }`}
+              >
+                {spd}x
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (videoRef.current?.requestFullscreen) {
+                videoRef.current.requestFullscreen();
+              }
+            }}
+            className="p-1.5 text-slate-300 hover:text-white"
+            title="Toàn màn hình"
+          >
+            <Maximize className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   // Mark lesson completed & auto-advance
   const handleMarkCompleted = () => {
-    // Bắt buộc phải xem hết video mới được hoàn thành bài
+    // Bắt buộc xem ≥90% video mới được hoàn thành bài (MP4: tự tick qua onTimeUpdate ≥90%; iframe: tick tay)
     if (!videoWatched) {
       setWatchedTickError(true);
       return;
     }
     setWatchedTickError(false);
 
-    // Bắt buộc nộp mini-test (nếu bài có quiz) trước khi hoàn thành bài
-    if (currentLesson.miniQuiz && !miniQuizSubmitted) {
+    // Bài có mini-test: phải nộp bài VÀ đạt trên 50% mới được hoàn thành
+    if (currentLesson.miniQuiz && !miniQuizPassed) {
       setMiniQuizError(true);
       setTimeout(() => setMiniQuizError(false), 5000);
       return;
@@ -444,26 +629,41 @@ export const VideoLearningView: React.FC<VideoLearningViewProps> = ({
                 </p>
               </div>
             ) : videoSource.type === 'youtube' ? (
+              /* YouTube: phát qua IFrame Player API để ĐO tiến độ xem thật (poll ≥90%) */
               <div className="w-full h-full relative bg-black">
-                <iframe
-                  key={videoSource.embedUrl}
-                  src={videoSource.embedUrl}
-                  title={currentLesson.title}
-                  className="w-full h-full border-0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                  allowFullScreen
-                />
+                <div id={ytIframeId} className="w-full h-full" />
               </div>
-            ) : videoSource.type === 'googledrive' ? (
-              <div className="w-full h-full relative bg-slate-950 flex flex-col items-center justify-center">
-                <iframe
-                  key={videoSource.embedUrl}
-                  src={videoSource.embedUrl}
-                  title={currentLesson.title}
-                  className="w-full h-full border-0"
-                  allow="autoplay; encrypted-media; fullscreen"
-                  allowFullScreen
+            ) : videoSource.type === 'googledrive' && videoSource.proxyUrl ? (
+              /* Google Drive: phát qua <video> (proxy) để ĐO tiến độ xem thật — tự tick ≥90% */
+              <div className="w-full h-full relative bg-black group">
+                <video
+                  ref={videoRef}
+                  src={videoSource.proxyUrl}
+                  poster={currentLesson.videoThumbnail}
+                  className="w-full h-full object-contain"
+                  playsInline
+                  onPlay={() => setIsPlaying(true)}
+                  onPause={() => setIsPlaying(false)}
+                  onEnded={() => {
+                    setVideoWatched(true);
+                    setTimeout(() => handleMarkCompleted(), 400);
+                  }}
+                  onTimeUpdate={(e) => {
+                    const v = e.currentTarget;
+                    if (isFinite(v.duration) && v.duration > 0 && v.currentTime / v.duration >= 0.9) {
+                      setVideoWatched(true);
+                    }
+                  }}
+                  onLoadedMetadata={(e) => {
+                    const secs = Math.floor(e.currentTarget.duration);
+                    if (isFinite(secs) && secs > 0) {
+                      const m = Math.floor(secs / 60);
+                      const s = secs % 60;
+                      setActualDuration(`${m}:${String(s).padStart(2, '0')}`);
+                    }
+                  }}
                 />
+                {renderVideoControls()}
               </div>
             ) : videoSource.type === 'notebooklm' ? (
               <div className="w-full h-full relative bg-slate-950 flex flex-col">
@@ -476,6 +676,7 @@ export const VideoLearningView: React.FC<VideoLearningViewProps> = ({
                   sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
                   allowFullScreen
                 />
+                {renderWatchedTickButton()}
                 {/* Floating Top-Right Direct Open Button */}
                 <div className="absolute top-3 right-3 z-20">
                   <a
@@ -490,7 +691,8 @@ export const VideoLearningView: React.FC<VideoLearningViewProps> = ({
                 </div>
               </div>
             ) : (
-              <>
+              /* Video MP4 trực tiếp: đo tiến độ xem thật — tự tick ≥90% */
+              <div className="w-full h-full relative bg-black group">
                 <video
                   ref={videoRef}
                   src={effectiveVideoUrl}
@@ -504,6 +706,13 @@ export const VideoLearningView: React.FC<VideoLearningViewProps> = ({
                     // Tự động hoàn thành bài và chuyển sang bài tiếp theo khi xem hết video
                     setTimeout(() => handleMarkCompleted(), 400);
                   }}
+                  onTimeUpdate={(e) => {
+                    // Tự tick "đã xem" khi xem ≥90% video (không cần xem hết 100%)
+                    const v = e.currentTarget;
+                    if (isFinite(v.duration) && v.duration > 0 && v.currentTime / v.duration >= 0.9) {
+                      setVideoWatched(true);
+                    }
+                  }}
                   onLoadedMetadata={(e) => {
                     const secs = Math.floor(e.currentTarget.duration);
                     if (isFinite(secs) && secs > 0) {
@@ -513,96 +722,8 @@ export const VideoLearningView: React.FC<VideoLearningViewProps> = ({
                     }
                   }}
                 />
-
-                {/* In-video Overlay Controls — hiện khi hover (desktop) hoặc tap (mobile) */}
-                <div
-                  onClick={() => setShowControls((v) => !v)}
-                  className={`absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent transition-opacity flex flex-col justify-between p-3 sm:p-4 cursor-pointer ${
-                    showControls ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-                  }`}
-                >
-                  <div className="flex items-center justify-between pointer-events-auto">
-                    <span className="text-xs bg-black/60 px-2.5 py-1 rounded-md text-white font-medium">
-                      {currentLesson.title}
-                    </span>
-                    <span className="text-xs bg-blue-600/80 px-2 py-0.5 rounded text-white font-bold">
-                      {actualDuration || '—'}
-                    </span>
-                  </div>
-
-                  {/* Bottom control bar */}
-                  <div className="flex items-center justify-between gap-3 pointer-events-auto">
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          togglePlay();
-                        }}
-                        className="w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition"
-                      >
-                        {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
-                      </button>
-
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (videoRef.current) videoRef.current.currentTime -= 10;
-                        }}
-                        className="p-1.5 text-slate-300 hover:text-white"
-                        title="Lùi 10 giây"
-                      >
-                        <RotateCcw className="w-4 h-4" />
-                      </button>
-
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (videoRef.current) {
-                            videoRef.current.muted = !isMuted;
-                            setIsMuted(!isMuted);
-                          }
-                        }}
-                        className="p-1.5 text-slate-300 hover:text-white"
-                      >
-                        {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-                      </button>
-                    </div>
-
-                    {/* Speed selector */}
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center bg-white/10 rounded-lg p-0.5 text-[11px] font-bold">
-                        {[1, 1.25, 1.5, 2].map((spd) => (
-                          <button
-                            key={spd}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleSpeedChange(spd);
-                            }}
-                            className={`px-2 py-0.5 rounded transition ${
-                              playbackSpeed === spd ? 'bg-blue-600 text-white' : 'text-slate-300 hover:text-white'
-                            }`}
-                          >
-                            {spd}x
-                          </button>
-                        ))}
-                      </div>
-
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (videoRef.current?.requestFullscreen) {
-                            videoRef.current.requestFullscreen();
-                          }
-                        }}
-                        className="p-1.5 text-slate-300 hover:text-white"
-                        title="Toàn màn hình"
-                      >
-                        <Maximize className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </>
+                {renderVideoControls()}
+              </div>
             )}
           </div>
 
@@ -794,6 +915,7 @@ export const VideoLearningView: React.FC<VideoLearningViewProps> = ({
                     lessonTitle={currentLesson.title}
                     isLessonCompleted={isCurrentLessonCompleted}
                     onCompleteLesson={handleMarkCompleted}
+                    onQuizResult={(r) => setMiniQuizPassed(r.passed)}
                   />
                 ) : (
                   <div className="text-center py-8 text-slate-400">

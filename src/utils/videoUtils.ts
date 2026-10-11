@@ -6,6 +6,8 @@ export interface ParsedVideoSource {
   originalUrl: string;
   videoId?: string;
   displayName: string;
+  /** URL proxy để phát bằng <video> (Google Drive MP4) — đo tiến độ xem thật được */
+  proxyUrl?: string;
 }
 
 /**
@@ -54,6 +56,7 @@ export function parseVideoSource(rawUrl: string): ParsedVideoSource {
       originalUrl: url,
       videoId: fileId,
       displayName: 'Google Drive Video',
+      proxyUrl: `/api/video-proxy?id=${fileId}`,
     };
   }
 
@@ -68,6 +71,7 @@ export function parseVideoSource(rawUrl: string): ParsedVideoSource {
       originalUrl: url,
       videoId: fileId,
       displayName: 'Google Drive Video',
+      proxyUrl: `/api/video-proxy?id=${fileId}`,
     };
   }
 
