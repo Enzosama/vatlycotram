@@ -1,0 +1,6 @@
+{
+  "name": "EduLearn - Nền Tảng Học Liệu Trực Tuyến & Sơ Đồ NotebookLM",
+  "description": "Lớp học Vật lý TQT (Năm học 2026-2027). Hệ thống học liệu bài giảng video, sơ đồ tư duy NotebookLM, bảng xếp hạng Top 5 và hệ thống WordPress-style Site Management (/m@nagement) quản trị đề thi, ngân hàng câu hỏi và sổ điểm điện tử.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

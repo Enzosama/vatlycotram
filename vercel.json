@@ -1,0 +1,17 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/db"
+    },
+    {
+      "source": "/((?!assets/|api/).*)",
+      "destination": "/index.html"
+    }
+  ],
+  "functions": {
+    "api/send-otp.ts": { "maxDuration": 30 },
+    "api/verify-otp.ts": { "maxDuration": 30 }
+  }
+}
