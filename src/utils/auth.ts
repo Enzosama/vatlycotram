@@ -102,6 +102,76 @@ export function saveStudentEmail(studentId: string, email: string): void {
   writeMap(AUTH_KEYS.EMAILS, map);
 }
 
+// ==================== TÀI KHOẢN ĐÃ DÙNG TRÊN THIẾT BỊ NÀY ====================
+
+/** Tài khoản đã từng đăng nhập trên thiết bị hiện tại (từ localStorage). */
+export interface DeviceAccount {
+  id: string;
+  name: string;
+  className: string;
+  schoolCode: string;
+  /** Đang là session hiện tại (chưa logout) */
+  hasSession: boolean;
+  /** Đã đổi mật khẩu lần đầu (từng hoàn tất đăng nhập) */
+  passwordChanged: boolean;
+}
+
+/**
+ * Liệt kê các tài khoản đã từng dùng trên thiết bị này — gộp từ
+ * session + passwords + pwd_changed keys. Id không có trong STUDENT_ACCOUNTS
+ * (vd hs-default dev bypass) bị loại. Sort: session trước, rồi đã đổi MK, rồi tên.
+ */
+export function getKnownAccountsOnDevice(): DeviceAccount[] {
+  if (typeof localStorage === 'undefined') return [];
+
+  const sessionId = localStorage.getItem(AUTH_KEYS.SESSION) || '';
+  const pwdMap = readMap(AUTH_KEYS.PASSWORDS);
+  const changedMap = readMap(AUTH_KEYS.PASSWORD_CHANGED);
+
+  const ids = new Set<string>();
+  if (sessionId) ids.add(sessionId);
+  Object.keys(pwdMap).forEach((id) => ids.add(id));
+  Object.keys(changedMap).forEach((id) => ids.add(id));
+
+  const accounts: DeviceAccount[] = [];
+  for (const id of ids) {
+    const student = findStudentById(id);
+    if (!student) continue; // bỏ id không hợp lệ (hs-default...)
+    accounts.push({
+      id: student.id,
+      name: student.name,
+      className: student.className,
+      schoolCode: student.schoolCode,
+      hasSession: id === sessionId,
+      passwordChanged: changedMap[id] === '1' || !!pwdMap[id],
+    });
+  }
+
+  accounts.sort((a, b) => {
+    if (a.hasSession !== b.hasSession) return a.hasSession ? -1 : 1;
+    if (a.passwordChanged !== b.passwordChanged) return a.passwordChanged ? -1 : 1;
+    return a.name.localeCompare(b.name, 'vi');
+  });
+  return accounts;
+}
+
+/**
+ * Xoá toàn bộ dấu vết đăng nhập trên thiết bị này (session + mật khẩu đã đổi
+ * + email bổ sung). Dùng cho máy tính dùng chung — học sinh đăng xuất sạch sẽ
+ * phải đăng nhập lại từ đầu (mật khẩu mặc định) ở lần sau.
+ */
+export function clearDeviceAuth(): void {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    localStorage.removeItem(AUTH_KEYS.SESSION);
+    localStorage.removeItem(AUTH_KEYS.PASSWORDS);
+    localStorage.removeItem(AUTH_KEYS.PASSWORD_CHANGED);
+    localStorage.removeItem(AUTH_KEYS.EMAILS);
+  } catch (e) {
+    console.error(e);
+  }
+}
+
 export type AuthResult =
   | { ok: true; student: StudentAccount; mustChangePassword: boolean; error?: undefined }
   | { ok: false; error: string; student?: undefined; mustChangePassword?: undefined };

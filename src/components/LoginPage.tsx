@@ -21,9 +21,12 @@ import {
   DEFAULT_PASSWORD,
   getStudentEmail,
   saveStudentEmail,
+  getKnownAccountsOnDevice,
+  clearDeviceAuth,
+  DeviceAccount,
   SchoolOption,
 } from '../utils/auth';
-import { StudentAccount } from '../data/studentAccounts';
+import { STUDENT_ACCOUNTS, StudentAccount } from '../data/studentAccounts';
 
 type Step = 1 | 2 | 3 | 4 | 5;
 
@@ -33,6 +36,10 @@ interface LoginPageProps {
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   const schools = useMemo(() => getSchoolOptions(), []);
+  // Tài khoản đã từng đăng nhập trên thiết bị này (localStorage)
+  const [deviceAccounts, setDeviceAccounts] = useState<DeviceAccount[]>(() =>
+    getKnownAccountsOnDevice()
+  );
 
   const [step, setStep] = useState<Step>(1);
   const [schoolCode, setSchoolCode] = useState('');
@@ -86,6 +93,33 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     setPassword('');
     setError('');
     setStep(3);
+  };
+
+  // Vào thẳng app với account đang có session (không cần nhập lại mật khẩu)
+  const handleContinueAsSession = (account: DeviceAccount) => {
+    const student = STUDENT_ACCOUNTS.find((s) => s.id === account.id);
+    if (!student) return;
+    setError('');
+    onLoginSuccess(student);
+  };
+
+  // Chọn account cũ trên thiết bị → nhảy thẳng bước nhập mật khẩu
+  const handlePickDeviceAccount = (account: DeviceAccount) => {
+    const student = STUDENT_ACCOUNTS.find((s) => s.id === account.id);
+    if (!student) return;
+    setSchoolCode(account.schoolCode);
+    setSelected(student);
+    setPassword('');
+    setError('');
+    setNotice('');
+    setStep(3);
+  };
+
+  // Xoá sạch dấu vết đăng nhập trên thiết bị (máy dùng chung)
+  const handleClearDevice = () => {
+    clearDeviceAuth();
+    setDeviceAccounts([]);
+    setNotice('Đã xoá thông tin đăng nhập trên thiết bị này.');
   };
 
   const handleLogin = () => {
@@ -332,6 +366,81 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               {/* Bước 1: chọn trường */}
               {step === 1 && (
                 <div className="space-y-4">
+                  {/* Lối tắt: session còn → vào thẳng app */}
+                  {deviceAccounts.filter((a) => a.hasSession).length > 0 && (
+                    <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200">
+                      <p className="text-[11px] font-bold text-emerald-700 uppercase tracking-wide mb-2">
+                        Tiếp tục với tư cách
+                      </p>
+                      {deviceAccounts
+                        .filter((a) => a.hasSession)
+                        .map((a) => (
+                          <div key={a.id} className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full bg-emerald-600 text-white flex items-center justify-center text-sm font-bold shrink-0">
+                              {a.name.charAt(0)}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-semibold text-slate-800 truncate">{a.name}</p>
+                              <p className="text-[11px] text-slate-500">Lớp {a.className}</p>
+                            </div>
+                            <button
+                              id={`login-continue-${a.id}`}
+                              onClick={() => handleContinueAsSession(a)}
+                              className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition shrink-0"
+                            >
+                              <LogIn className="w-3.5 h-3.5" />
+                              <span>Vào học ngay</span>
+                            </button>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+
+                  {/* Lối tắt: account đã từng đổi MK trên thiết bị này */}
+                  {deviceAccounts.filter((a) => a.passwordChanged && !a.hasSession).length > 0 && (
+                    <div className="p-3.5 rounded-xl bg-sky-50 border border-sky-200">
+                      <p className="text-[11px] font-bold text-sky-700 uppercase tracking-wide mb-2">
+                        Đã từng đăng nhập trên thiết bị này
+                      </p>
+                      <div className="max-h-48 overflow-y-auto divide-y divide-sky-100 border border-sky-200 rounded-lg bg-white">
+                        {deviceAccounts
+                          .filter((a) => a.passwordChanged && !a.hasSession)
+                          .slice(0, 5)
+                          .map((a) => (
+                            <button
+                              key={a.id}
+                              id={`login-device-account-${a.id}`}
+                              onClick={() => handlePickDeviceAccount(a)}
+                              className="w-full flex items-center justify-between gap-3 p-2.5 text-left hover:bg-sky-50 transition"
+                            >
+                              <div className="min-w-0">
+                                <p className="text-sm font-semibold text-slate-800 truncate">{a.name}</p>
+                                <p className="text-[11px] text-slate-500">Lớp {a.className}</p>
+                              </div>
+                              <span className="flex items-center gap-1 text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md shrink-0">
+                                Đã có mật khẩu
+                                <ChevronRight className="w-3 h-3" />
+                              </span>
+                            </button>
+                          ))}
+                      </div>
+                      <button
+                        onClick={handleClearDevice}
+                        className="mt-2 text-[11px] font-semibold text-slate-500 hover:text-rose-600 hover:underline"
+                      >
+                        Xoá thông tin đăng nhập trên thiết bị này
+                      </button>
+                    </div>
+                  )}
+
+                  {deviceAccounts.length > 0 && (
+                    <div className="flex items-center gap-3 pt-1">
+                      <div className="h-px flex-1 bg-slate-200" />
+                      <span className="text-[11px] font-semibold text-slate-400">HOẶC</span>
+                      <div className="h-px flex-1 bg-slate-200" />
+                    </div>
+                  )}
+
                   <p className="text-xs text-slate-600">
                     Chọn trường của bạn để tra cứu tài khoản học sinh.
                   </p>
