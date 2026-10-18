@@ -10,8 +10,9 @@ import { COURSES_DATA } from './data/coursesData';
 import { Course } from './types';
 import { LoginPage } from './components/LoginPage';
 import { ProfilePage } from './components/ProfilePage';
-import { getSessionStudent, logout as authLogout } from './utils/auth';
+import { getSessionStudent, logout as authLogout, getTeacherSession, teacherLogout, TeacherAccount } from './utils/auth';
 import { SCHOOLS, StudentAccount } from './data/studentAccounts';
+import { TeacherLoginPage } from './components/TeacherLoginPage';
 import { resolveRoute, pathForTab } from './utils/routeResolver';
 import { backupToGsheet, restoreFromGsheet } from './lib/gsheet';
 
@@ -48,9 +49,12 @@ const getInitialRoute = () => {
 
 export default function App() {
   const initialRoute = getInitialRoute();
-  // Học sinh phải đăng nhập; trang /m@nagement (giáo viên) vào trực tiếp.
+  // Học sinh phải đăng nhập; giáo viên phải đăng nhập trang /m@nagement.
   const [authStudent, setAuthStudent] = useState<StudentAccount | null>(() =>
     initialRoute.isManagement ? null : getSessionStudent()
+  );
+  const [authTeacher, setAuthTeacher] = useState<TeacherAccount | null>(() =>
+    initialRoute.isManagement ? getTeacherSession() : null
   );
   const [activeTab, setActiveTab] = useState<AppTab>(() => initialRoute.tab);
   const [selectedCourse, setSelectedCourse] = useState<Course>(COURSES_DATA[0]);
@@ -121,6 +125,17 @@ export default function App() {
   // Exit management and restore URL
   const handleExitManagement = () => {
     navigateTo('courses');
+  };
+
+  // Khi đăng nhập giáo viên thành công
+  const handleTeacherLoginSuccess = (teacher: TeacherAccount) => {
+    setAuthTeacher(teacher);
+  };
+
+  // Đăng xuất giáo viên
+  const handleTeacherLogout = () => {
+    teacherLogout();
+    setAuthTeacher(null);
   };
 
   // Load persistence — học sinh đang hoạt động + tiến độ riêng của học sinh đó
@@ -236,9 +251,15 @@ export default function App() {
   };
 
   // Dedicated WordPress-style Site Management view when routed via /m@nagement
+  // Cổng bảo mật: giáo viên phải đăng nhập trước khi vào trang quản trị.
   if (activeTab === 'management') {
+    if (!authTeacher) {
+      return <TeacherLoginPage onLoginSuccess={handleTeacherLoginSuccess} />;
+    }
     return (
       <SiteManagementView
+        teacher={authTeacher}
+        onTeacherLogout={handleTeacherLogout}
         onBackToApp={handleExitManagement}
       />
     );

@@ -44,6 +44,8 @@ import {
 } from 'lucide-react';
 import { StudentGradeRecord, OfficialExam, Question, Course, ExamPackage } from '../../types';
 import { COURSES_DATA } from '../../data/coursesData';
+import { TeacherAccount } from '../../data/teacherAccounts';
+import { SCHOOLS } from '../../data/studentAccounts';
 import { getStudentOverallProgress } from '../../utils/storage';
 import { 
   getAllStudentGrades, 
@@ -63,12 +65,16 @@ import {
 } from '../../utils/managementStorage';
 
 interface SiteManagementViewProps {
+  teacher: TeacherAccount;
+  onTeacherLogout?: () => void;
   onBackToApp?: () => void;
 }
 
 type WpMenuTab = 'dashboard' | 'exercises' | 'grades' | 'settings';
 
 export const SiteManagementView: React.FC<SiteManagementViewProps> = ({
+  teacher,
+  onTeacherLogout,
   onBackToApp,
 }) => {
   // Navigation tabs mimicking WordPress wp-admin menus
@@ -79,7 +85,7 @@ export const SiteManagementView: React.FC<SiteManagementViewProps> = ({
   // Notice alert banner (WordPress style green/blue banner)
   const [notice, setNotice] = useState<{ type: 'success' | 'info' | 'warning'; message: string } | null>({
     type: 'info',
-    message: 'Chào mừng Cô Trần Lê Ngọc Trâm đến với Bảng Quản Trị Hệ Thống. Bạn đang làm việc trong khu vực bảo mật /m@nagement.',
+    message: `Chào mừng Cô ${teacher.name} đến với Bảng Quản Trị Hệ Thống. Bạn đang làm việc trong khu vực bảo mật /m@nagement.`,
   });
 
   // ==================== QUẢN LÝ TỪNG BỘ ĐỀ & ĐIỀU CHỈNH CÂU HỎI ====================
@@ -420,6 +426,10 @@ export const SiteManagementView: React.FC<SiteManagementViewProps> = ({
   const [gradeFilterClass, setGradeFilterClass] = useState('all');
   // Lọc theo khóa học
   const [gradeFilterCourse, setGradeFilterCourse] = useState('all');
+  // Tên trường của giáo viên (dùng để filter dữ liệu)
+  const teacherSchoolName = useMemo(() => {
+    return SCHOOLS.find((s) => s.code === teacher.schoolCode)?.name || '';
+  }, [teacher.schoolCode]);
   // Tổng số bài học trên toàn bộ nền tảng (mẫu số cho cột Tiến độ)
   const totalPlatformLessonsCount = COURSES_DATA.reduce(
     (sum, c) => sum + c.modules.reduce((mSum, m) => mSum + m.lessons.length, 0),
@@ -475,7 +485,11 @@ export const SiteManagementView: React.FC<SiteManagementViewProps> = ({
               ? 'Bài 2'
               : 'Bài 3'
           );
-        return matchSearch && matchStatus && matchClass && matchCourse;
+        // Lọc theo trường — giáo viên chỉ thấy học sinh trường mình
+        const matchSchool =
+          !teacherSchoolName ||
+          g.schoolName.toLowerCase().includes(teacherSchoolName.toLowerCase());
+        return matchSearch && matchStatus && matchClass && matchCourse && matchSchool;
       })
       .sort((a, b) => {
         if (gradeSortBy === 'scoreDesc') return b.score10 - a.score10;
@@ -639,7 +653,7 @@ export const SiteManagementView: React.FC<SiteManagementViewProps> = ({
 
   // ==================== CÀI ĐẶT HỆ THỐNG ====================
   const [siteSettings, setSiteSettings] = useState({
-    siteTitle: 'Lớp học Vật lý Cô Trần Lê Ngọc Trâm',
+    siteTitle: `Lớp học Vật lý Cô ${teacher.name}`,
     academicYear: '2026-2027',
     gradingScale: '10',
     passThreshold: '5.0',
@@ -652,6 +666,12 @@ export const SiteManagementView: React.FC<SiteManagementViewProps> = ({
       type: 'success',
       message: 'Đã lưu cấu hình hệ thống thành công.',
     });
+  };
+
+  const handleTeacherLogoutClick = () => {
+    if (window.confirm(`Bạn có chắc muốn đăng xuất khỏi bảng quản trị?`)) {
+      onTeacherLogout?.();
+    }
   };
 
   return (
@@ -675,7 +695,7 @@ export const SiteManagementView: React.FC<SiteManagementViewProps> = ({
               W
             </div>
             <span className="font-semibold text-white hidden sm:inline">
-              Lớp học Vật lý Cô Trần Lê Ngọc Trâm
+              Lớp học Vật lý Cô {teacher.name}
             </span>
           </div>
 
@@ -727,8 +747,17 @@ export const SiteManagementView: React.FC<SiteManagementViewProps> = ({
             <div className="w-5 h-5 rounded-full bg-blue-700 text-white flex items-center justify-center text-[10px] font-bold">
               T
             </div>
-            <span className="hidden md:inline text-slate-200 font-medium">Chào, Cô Trần Lê Ngọc Trâm</span>
+            <span className="hidden md:inline text-slate-200 font-medium">Chào, Cô {teacher.name}</span>
           </div>
+
+          {/* Đăng xuất giáo viên */}
+          <button
+            onClick={handleTeacherLogoutClick}
+            className="text-xs bg-[#d63638] hover:bg-[#b32d2e] text-white px-2.5 py-0.5 rounded font-medium transition"
+            title="Đăng xuất khỏi bảng quản trị"
+          >
+            Đăng xuất
+          </button>
 
           {/* Return to website */}
           <button
@@ -948,7 +977,7 @@ export const SiteManagementView: React.FC<SiteManagementViewProps> = ({
                 {/* WordPress Welcome Panel */}
                 <div className="bg-white border border-[#c3c4c7] rounded-sm p-5 shadow-xs">
                   <h2 className="text-base font-semibold text-[#1d2327] mb-1">
-                    Chào mừng Cô Trần Lê Ngọc Trâm đến với Bảng Quản Trị Lớp Học!
+                    Chào mừng Cô {teacher.name} đến với Bảng Quản Trị Lớp Học!
                   </h2>
                   <p className="text-xs text-slate-500 mb-4 max-w-2xl">
                     Tại đây Cô có thể cấu hình ngân hàng câu hỏi đề thi trắc nghiệm, quản lý thời gian làm bài, theo dõi tiến độ nộp bài của học sinh và xuất bảng điểm trực tiếp ra file Excel.
@@ -2666,7 +2695,7 @@ export const SiteManagementView: React.FC<SiteManagementViewProps> = ({
                   <p className="font-semibold text-slate-700">GIÁO VIÊN BỘ MÔN</p>
                   <p className="text-[10px] text-slate-400 italic mt-0.5">(Ký và ghi rõ họ tên)</p>
                   <div className="h-14 flex items-center justify-center font-bold text-slate-800">
-                    Cô Trần Lê Ngọc Trâm
+                    Cô {teacher.name}
                   </div>
                 </div>
               </div>

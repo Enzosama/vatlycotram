@@ -67,6 +67,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   // Email bổ sung (HS thiếu email)
   const [extraEmail, setExtraEmail] = useState('');
 
+  // Đăng nhập bằt tài khoản khác (nhập mã HS trực tiếp)
+  const [showDirectInput, setShowDirectInput] = useState(false);
+  const [directStudentId, setDirectStudentId] = useState('');
+
   const selectedSchool = schools.find((s) => s.code === schoolCode);
 
   const handleSearch = () => {
@@ -86,6 +90,27 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     } else {
       setStep(2);
     }
+  };
+
+  // Đăng nhập trực tiếp bằng mã HS (bỏ qua tra cứu)
+  const handleDirectLogin = () => {
+    setError('');
+    if (!directStudentId.trim()) {
+      setError('Vui lòng nhập mã học sinh.');
+      return;
+    }
+    const student = STUDENT_ACCOUNTS.find((s) => s.id === directStudentId.trim());
+    if (!student) {
+      setError('Không tìm thấy học sinh với mã này.');
+      return;
+    }
+    setSchoolCode(student.schoolCode);
+    setSelected(student);
+    setPassword('');
+    setError('');
+    setNotice('');
+    setShowDirectInput(false);
+    setStep(3);
   };
 
   const handlePickStudent = (student: StudentAccount) => {
@@ -498,6 +523,43 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                     <span>Tiếp tục</span>
                     <ChevronRight className="w-4 h-4" />
                   </button>
+
+                  {/* Đăng nhập bằt tài khoản khác */}
+                  <div className="pt-2">
+                    <button
+                      onClick={() => {
+                        setShowDirectInput(!showDirectInput);
+                        setDirectStudentId('');
+                        setError('');
+                      }}
+                      className="w-full text-center text-xs font-semibold text-slate-500 hover:text-blue-700 hover:underline py-1"
+                    >
+                      {showDirectInput ? 'Nhấp để đóng' : 'Đăng nhập bằt tài khoản khác (nhập mã HS)'}
+                    </button>
+                    {showDirectInput && (
+                      <div className="mt-2 p-3 rounded-lg bg-slate-50 border border-slate-200 space-y-2">
+                        <label className="block text-xs font-semibold text-slate-700">
+                          Nhập mã học sinh (ví dụ: HS2616079308)
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={directStudentId}
+                            onChange={(e) => setDirectStudentId(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') handleDirectLogin(); }}
+                            placeholder="HS..."
+                            className="flex-1 bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                          />
+                          <button
+                            onClick={handleDirectLogin}
+                            className="px-3 py-2 bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold rounded-lg transition shrink-0"
+                          >
+                            Tìm
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 

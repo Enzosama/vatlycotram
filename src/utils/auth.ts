@@ -1,4 +1,6 @@
 import { STUDENT_ACCOUNTS, SCHOOLS, StudentAccount } from '../data/studentAccounts';
+import { TEACHER_ACCOUNTS, TEACHER_DEFAULT_PASSWORD, TeacherAccount } from '../data/teacherAccounts';
+export type { TeacherAccount } from '../data/teacherAccounts';
 
 // ==================== XÁC THỰC HỌC SINH ====================
 // Mật khẩu mặc định ban đầu cho mọi tài khoản.
@@ -13,6 +15,8 @@ const AUTH_KEYS = {
   SESSION: 'edulearn_auth_session_v1',
   /** studentId -> email học sinh tự nhập bổ sung */
   EMAILS: 'edulearn_auth_emails_v1',
+  /** studentId -> timestamp truy cập cuối cùng (ms) */
+  LAST_SEEN: 'edulearn_auth_last_seen_v1',
 };
 
 function safeParse<T>(raw: string | null, fallback: T): T {
@@ -114,6 +118,8 @@ export interface DeviceAccount {
   hasSession: boolean;
   /** Đã đổi mật khẩu lần đầu (từng hoàn tất đăng nhập) */
   passwordChanged: boolean;
+  /** Timestamp truy cập cuối cùng (ms) — dùng để sort gần đây nhất */
+  lastSeen: number;
 }
 
 /**
@@ -127,11 +133,13 @@ export function getKnownAccountsOnDevice(): DeviceAccount[] {
   const sessionId = localStorage.getItem(AUTH_KEYS.SESSION) || '';
   const pwdMap = readMap(AUTH_KEYS.PASSWORDS);
   const changedMap = readMap(AUTH_KEYS.PASSWORD_CHANGED);
+  const lastSeenMap = readMap(AUTH_KEYS.LAST_SEEN);
 
   const ids = new Set<string>();
   if (sessionId) ids.add(sessionId);
   Object.keys(pwdMap).forEach((id) => ids.add(id));
   Object.keys(changedMap).forEach((id) => ids.add(id));
+  Object.keys(lastSeenMap).forEach((id) => ids.add(id));
 
   const accounts: DeviceAccount[] = [];
   for (const id of ids) {
@@ -144,11 +152,13 @@ export function getKnownAccountsOnDevice(): DeviceAccount[] {
       schoolCode: student.schoolCode,
       hasSession: id === sessionId,
       passwordChanged: changedMap[id] === '1' || !!pwdMap[id],
+      lastSeen: Number(lastSeenMap[id] || 0),
     });
   }
 
   accounts.sort((a, b) => {
     if (a.hasSession !== b.hasSession) return a.hasSession ? -1 : 1;
+    if (a.lastSeen !== b.lastSeen) return b.lastSeen - a.lastSeen; // gần đây nhất lên đầu
     if (a.passwordChanged !== b.passwordChanged) return a.passwordChanged ? -1 : 1;
     return a.name.localeCompare(b.name, 'vi');
   });
@@ -167,6 +177,7 @@ export function clearDeviceAuth(): void {
     localStorage.removeItem(AUTH_KEYS.PASSWORDS);
     localStorage.removeItem(AUTH_KEYS.PASSWORD_CHANGED);
     localStorage.removeItem(AUTH_KEYS.EMAILS);
+    localStorage.removeItem(AUTH_KEYS.LAST_SEEN);
   } catch (e) {
     console.error(e);
   }
@@ -175,6 +186,14 @@ export function clearDeviceAuth(): void {
 export type AuthResult =
   | { ok: true; student: StudentAccount; mustChangePassword: boolean; error?: undefined }
   | { ok: false; error: string; student?: undefined; mustChangePassword?: undefined };
+
+/** Cập nhật timestamp truy cập cuối cùng của học sinh. */
+export function touchLastSeen(studentId: string): void {
+  if (typeof localStorage === 'undefined') return;
+  const map = readMap(AUTH_KEYS.LAST_SEEN);
+  map[studentId] = String(Date.now());
+  writeMap(AUTH_KEYS.LAST_SEEN, map);
+}
 
 /** Đăng nhập: kiểm tra mật khẩu. Nếu đúng và là mật khẩu mặc định -> bắt buộc đổi. */
 export function login(studentId: string, password: string): AuthResult {
@@ -189,6 +208,7 @@ export function login(studentId: string, password: string): AuthResult {
   if (typeof localStorage !== 'undefined') {
     try {
       localStorage.setItem(AUTH_KEYS.SESSION, studentId);
+      touchLastSeen(studentId);
     } catch (e) {
       console.error(e);
     }
@@ -254,6 +274,124 @@ export function logout(): void {
   if (typeof localStorage === 'undefined') return;
   try {
     localStorage.removeItem(AUTH_KEYS.SESSION);
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+// ==================== XÁC THỰC GIÁO VIÊN ====================
+
+const TEACHER_AUTH_KEYS = {
+  /** teacherId -> mật khẩu đã đổi */
+  PASSWORDS: 'edulearn_teacher_passwords_v1',
+  /** teacherId -> true nếu đã đổi mật khẩu lần đầu */
+  PASSWORD_CHANGED: 'edulearn_teacher_pwd_changed_v1',
+  /** teacherId đang đăng nhập */
+  SESSION: 'edulearn_teacher_session_v1',
+};
+
+function readTeacherMap(key: string): Record<string, string> {
+  if (typeof localStorage === 'undefined') return {};
+  return safeParse<Record<string, string>>(localStorage.getItem(key), {});
+}
+
+function writeTeacherMap(key: string, map: Record<string, unknown>): void {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    localStorage.setItem(key, JSON.stringify(map));
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+/** Lấy giáo viên theo id. */
+export function findTeacherById(id: string): TeacherAccount | undefined {
+  return TEACHER_ACCOUNTS.find((t) => t.id === id);
+}
+
+/** Mật khẩu hiện hành của giáo viên (mặc định nếu chưa đổi). */
+export function getTeacherPassword(teacherId: string): string {
+  const map = readTeacherMap(TEACHER_AUTH_KEYS.PASSWORDS);
+  return map[teacherId] || TEACHER_DEFAULT_PASSWORD;
+}
+
+/** Đã đổi mật khẩu lần đầu chưa? */
+export function hasTeacherChangedPassword(teacherId: string): boolean {
+  const map = readTeacherMap(TEACHER_AUTH_KEYS.PASSWORD_CHANGED);
+  return map[teacherId] === '1';
+}
+
+/** Giáo viên đang đăng nhập (nếu có). */
+export function getTeacherSession(): TeacherAccount | null {
+  if (typeof localStorage === 'undefined') return null;
+  const id = localStorage.getItem(TEACHER_AUTH_KEYS.SESSION);
+  if (!id) return null;
+  return findTeacherById(id) || null;
+}
+
+export type TeacherAuthResult =
+  | { ok: true; teacher: TeacherAccount; mustChangePassword: boolean; error?: undefined }
+  | { ok: false; error: string; teacher?: undefined; mustChangePassword?: undefined };
+
+/** Đăng nhập giáo viên: kiểm tra mật khẩu. Nếu đúng và là mật khẩu mặc định -> bắt buộc đổi. */
+export function teacherLogin(teacherId: string, password: string): TeacherAuthResult {
+  const teacher = findTeacherById(teacherId);
+  if (!teacher) {
+    return { ok: false, error: 'Không tìm thấy tài khoản giáo viên.' };
+  }
+  if (password !== getTeacherPassword(teacherId)) {
+    return { ok: false, error: 'Mật khẩu không đúng. Vui lòng thử lại.' };
+  }
+  const mustChangePassword = !hasTeacherChangedPassword(teacherId);
+  if (typeof localStorage !== 'undefined') {
+    try {
+      localStorage.setItem(TEACHER_AUTH_KEYS.SESSION, teacherId);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+  return { ok: true, teacher, mustChangePassword };
+}
+
+/** Đổi mật khẩu giáo viên. */
+export function changeTeacherPassword(
+  teacherId: string,
+  oldPassword: string,
+  newPassword: string,
+  confirmPassword: string
+): { ok: boolean; error?: string } {
+  if (!findTeacherById(teacherId)) {
+    return { ok: false, error: 'Không tìm thấy tài khoản giáo viên.' };
+  }
+  if (oldPassword !== getTeacherPassword(teacherId)) {
+    return { ok: false, error: 'Mật khẩu hiện tại không đúng.' };
+  }
+  if (newPassword.length < 6) {
+    return { ok: false, error: 'Mật khẩu mới phải có ít nhất 6 ký tự.' };
+  }
+  if (newPassword === TEACHER_DEFAULT_PASSWORD) {
+    return { ok: false, error: 'Mật khẩu mới phải khác mật khẩu mặc định.' };
+  }
+  if (newPassword !== confirmPassword) {
+    return { ok: false, error: 'Xác nhận mật khẩu không khớp.' };
+  }
+
+  const pwdMap = readTeacherMap(TEACHER_AUTH_KEYS.PASSWORDS);
+  pwdMap[teacherId] = newPassword;
+  writeTeacherMap(TEACHER_AUTH_KEYS.PASSWORDS, pwdMap);
+
+  const changedMap = readTeacherMap(TEACHER_AUTH_KEYS.PASSWORD_CHANGED);
+  changedMap[teacherId] = '1';
+  writeTeacherMap(TEACHER_AUTH_KEYS.PASSWORD_CHANGED, changedMap);
+
+  return { ok: true };
+}
+
+/** Đăng xuất giáo viên. */
+export function teacherLogout(): void {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    localStorage.removeItem(TEACHER_AUTH_KEYS.SESSION);
   } catch (e) {
     console.error(e);
   }

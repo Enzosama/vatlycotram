@@ -53,7 +53,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onBack }) => {
   const studentId = session?.id || 'hs-default';
   const schoolName = session
     ? SCHOOLS.find((s) => s.code === session.schoolCode)?.name || session.schoolCode
-    : 'THPT Chuyên Lê Quý Đôn';
+    : 'Chưa đăng nhập';
 
   const initial = useMemo<CustomProfile>(() => getCustomProfile(studentId), [studentId]);
   const [profile, setProfile] = useState<CustomProfile>(initial);
@@ -154,7 +154,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onBack }) => {
               {/* Info */}
               <div className="pt-12 pb-5 px-5 text-center">
                 <h2 className="text-base font-bold text-slate-900 truncate">
-                  {session?.name || 'Võ Minh Nhật (Bạn)'}
+                  {session?.name || 'Khách'}
                 </h2>
                 {session?.email && (
                   <p className="text-xs text-slate-500 mt-0.5 truncate" title={session.email}>

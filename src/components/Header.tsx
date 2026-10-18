@@ -9,7 +9,7 @@ import {
   LogOut
 } from 'lucide-react';
 import { StudentProfile } from '../utils/storage';
-import { getCustomProfile } from '../utils/auth';
+import { getCustomProfile, getSessionStudent } from '../utils/auth';
 
 export type AppTab = 'courses' | 'learning' | 'leaderboard' | 'notebooklm' | 'management';
 
@@ -62,6 +62,7 @@ export const Header: React.FC<HeaderProps> = ({
   const studentMenuRef = useRef<HTMLDivElement>(null);
 
   // Avatar tùy chỉnh của học sinh đang hoạt động (nếu đã đặt trong trang cá nhân)
+  const session = getSessionStudent();
   const activeAvatar = useMemo(() => {
     void profileVersion; // đọc lại khi hồ sơ thay đổi
     const custom = getCustomProfile(currentStudent.id);
@@ -210,7 +211,7 @@ export const Header: React.FC<HeaderProps> = ({
                 />
                 <div className="hidden xl:block text-left">
                   <p className="text-xs font-semibold text-slate-800 leading-tight truncate max-w-[130px]">
-                    {currentStudent.name}
+                    {session?.name || 'Khách'}
                   </p>
                   <p className="text-[10px] text-slate-500">
                     {completedLessonsCount}/{totalLessonsCount} bài • {progressPercent}%
