@@ -13,7 +13,7 @@ const COURSE_VL10_BAI1: Course = {
     title: 'Vật lý - Trường THPT Nguyễn Thượng Hiền',
     avatar: 'https://drive.google.com/thumbnail?id=1g1Iq45yMPEbzn43pzxtZNgXXJibYHTqM&sz=w400',
   },
-  thumbnail: 'https://images.unsplash.com/photo-1636466497217-26a8cbeaf0aa?w=800&auto=format&fit=crop&q=80',
+  thumbnail: 'https://images.unsplash.com/photo-1789391347719-af1b6149c3c9?w=800&auto=format&fit=crop&q=80',
   category: 'Vật lý',
   rating: 4.98,
   ratingCount: 1580,
@@ -31,7 +31,7 @@ const COURSE_VL10_BAI1: Course = {
           title: 'Quá trình phát triển của Vật lí & 4 cuộc Cách mạng công nghiệp',
           duration: '14:20',
           videoUrl: 'https://drive.google.com/file/d/1MYw-DFPc0HLX5jU9OUYNydPubV5awSnG/view?usp=sharing',
-          videoThumbnail: 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=800&auto=format&fit=crop&q=80',
+          videoThumbnail: 'https://images.unsplash.com/photo-1778867127717-8e55e8e9dea4?w=800&auto=format&fit=crop&q=80',
           description: 'Tìm hiểu 3 giai đoạn phát triển lịch sử của Vật lí học (Tiền Vật lí, Cổ điển, Hiện đại) gắn liền với 4 cuộc Cách mạng công nghiệp của nhân loại.',
           keyPoints: [
             'Giai đoạn Tiền Vật lí (từ 350 TCN đến thế kỉ XVI): Tìm hiểu tự nhiên chỉ dựa vào quan sát và suy luận chủ quan (tiêu biểu là Aristotle).',
@@ -122,7 +122,7 @@ const COURSE_VL10_BAI1: Course = {
           title: 'Đối tượng, mục tiêu và vai trò của môn Vật lí',
           duration: '15:10',
           videoUrl: 'https://drive.google.com/file/d/1ZSEWxUaQ-FLGkb1HflvraPv1xAT-kQOU/view?usp=drive_link',
-          videoThumbnail: 'https://images.unsplash.com/photo-1507413245164-6160d8298b31?w=800&auto=format&fit=crop&q=80',
+          videoThumbnail: 'https://images.unsplash.com/photo-1758573466942-fbc45731e6eb?w=800&auto=format&fit=crop&q=80',
           description: 'Khám phá đối tượng nghiên cứu cốt lõi của Vật lí (vật chất và năng lượng), 3 khía cạnh mục tiêu phát triển năng lực và vai trò nền tảng trong khoa học tự nhiên & công nghệ.',
           keyPoints: [
             'Đối tượng nghiên cứu cốt lõi: Các dạng vận động của vật chất (bao gồm chất và trường) và năng lượng.',
@@ -216,7 +216,7 @@ const COURSE_VL10_BAI1: Course = {
           title: 'Phương pháp thực nghiệm & Phương pháp mô hình',
           duration: '16:05',
           videoUrl: 'https://drive.google.com/file/d/1uNOolGKbESN7a7ygfajCeUcVmIla4LVC/view?usp=drive_link',
-          videoThumbnail: 'https://images.unsplash.com/photo-1518133910546-b6c2fb7d79e3?w=800&auto=format&fit=crop&q=80',
+          videoThumbnail: 'https://images.unsplash.com/photo-1781330173674-c7e809277fbe?w=800&auto=format&fit=crop&q=80',
           description: 'Phân tích bản chất và quy trình chặt chẽ của Phương pháp thực nghiệm (5 bước do Galilei khởi xướng) và Phương pháp mô hình (4 bước: mô hình vật chất, lí thuyết, toán học).',
           keyPoints: [
             'Galileo Galilei là người đặt nền móng vĩ đại cho Phương pháp thực nghiệm.',
@@ -306,7 +306,7 @@ const COURSE_VL10_BAI1: Course = {
           title: 'Sơ đồ tư duy tổng hợp & Bài kiểm tra cuối bài',
           duration: '20:00',
           videoUrl: 'https://notebook.google.com/notebook/3bd6e582-08b6-4dc1-8fb8-71ebb4cc292f/artifact/ce999079-c255-4c5d-a8c9-c9cbb97aabe4',
-          videoThumbnail: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&auto=format&fit=crop&q=80',
+          videoThumbnail: 'https://images.unsplash.com/photo-1766297248084-b32bacb4a1e4?w=800&auto=format&fit=crop&q=80',
           description: 'Tổng ôn sơ đồ tư duy toàn bộ Bài 1 qua NotebookLM và thực hiện Bài kiểm tra cuối bài 20 phút chuẩn hóa theo cấu trúc Bộ Giáo dục & Đào tạo gồm 3 phần (Trắc nghiệm, Đúng/Sai, Trả lời ngắn).',
           keyPoints: [
             'Sơ đồ tư duy liên kết toàn diện toàn bộ nội dung Bài 1 – Làm quen với Vật lí trên Google NotebookLM.',
@@ -524,7 +524,7 @@ const COURSE_VL10_BAI2: Course = {
     title: 'Vật lý - Trường THPT Nguyễn Thượng Hiền',
     avatar: 'https://drive.google.com/thumbnail?id=1g1Iq45yMPEbzn43pzxtZNgXXJibYHTqM&sz=w400',
   },
-  thumbnail: 'https://images.unsplash.com/photo-1581093450021-4a7360e9a6b5?w=800&auto=format&fit=crop&q=80',
+  thumbnail: 'https://images.unsplash.com/photo-1758685734153-132c8620c1bd?w=800&auto=format&fit=crop&q=80',
   category: 'Vật lý',
   rating: 4.95,
   ratingCount: 980,
@@ -542,7 +542,7 @@ const COURSE_VL10_BAI2: Course = {
           title: 'An toàn khi sử dụng thiết bị thí nghiệm',
           duration: '15:00',
           videoUrl: 'https://drive.google.com/file/d/1R7Z2uoIAAwnqo8shhsV3uuVNl9qY-qhc/view?usp=sharing',
-          videoThumbnail: 'https://images.unsplash.com/photo-1581093450021-4a7360e9a6b5?w=800&auto=format&fit=crop&q=80',
+          videoThumbnail: 'https://images.unsplash.com/photo-1707944745860-4615eb585a41?w=800&auto=format&fit=crop&q=80',
           description: 'Nhận biết các loại thiết bị thí nghiệm có nguy cơ cao, hiểu ý nghĩa các ký hiệu trên thiết bị điện (AC/DC, Input, cực dương/âm) và cách bảo quản thiết bị quang học.',
           keyPoints: [
             'Thiết bị điện là loại có nguy cơ gây mất an toàn cao nhất trong phòng thực hành Vật lí.',
@@ -633,7 +633,7 @@ const COURSE_VL10_BAI2: Course = {
           title: 'Nguy cơ mất an toàn trong sử dụng thiết bị thí nghiệm',
           duration: '15:00',
           videoUrl: 'https://drive.google.com/file/d/1R7Z2uoIAAwnqo8shhsV3uuVNl9qY-qhc/view?usp=sharing',
-          videoThumbnail: 'https://images.unsplash.com/photo-1507413245164-6160d8298b31?w=800&auto=format&fit=crop&q=80',
+          videoThumbnail: 'https://images.unsplash.com/photo-1758685848662-0aad938fd19a?w=800&auto=format&fit=crop&q=80',
           description: 'Nhận biết các hành vi nguy hiểm gây hỏng hóc thiết bị đo điện, nguy cơ chập mạch và cách xử lý sự cố hỏa hoạn an toàn.',
           keyPoints: [
             'Nguyên nhân trực tiếp gây hỏng hóc thiết bị đo điện (Ampe kế, đồng hồ đa năng): chọn sai thang đo hoặc cắm dây đo sai chốt chức năng.',
@@ -728,7 +728,7 @@ const COURSE_VL10_BAI2: Course = {
           title: 'Quy tắc an toàn trong phòng thực hành Vật lí',
           duration: '14:00',
           videoUrl: 'https://drive.google.com/file/d/1R7Z2uoIAAwnqo8shhsV3uuVNl9qY-qhc/view?usp=sharing',
-          videoThumbnail: 'https://images.unsplash.com/photo-1518133910546-b6c2fb7d79e3?w=800&auto=format&fit=crop&q=80',
+          videoThumbnail: 'https://images.unsplash.com/photo-1758685734030-a31d96462eec?w=800&auto=format&fit=crop&q=80',
           description: 'Nắm vững các quy tắc bắt buộc khi vào phòng thực hành: tắt nguồn trước khi cắm/tháo thiết bị, có sự cho phép của giáo viên, và dọn dẹp đúng quy định.',
           keyPoints: [
             'Trước khi cắm hoặc tháo thiết bị điện trong mạch thí nghiệm, quy tắc bắt buộc là tắt công tắc nguồn điện.',
@@ -824,7 +824,7 @@ const COURSE_VL10_BAI2: Course = {
           title: 'Sơ đồ tư duy tổng hợp & Bài kiểm tra cuối bài',
           duration: '18:00',
           videoUrl: 'https://notebook.google.com/notebook/3bd6e582-08b6-4dc1-8fb8-71ebb4cc292f/artifact/df52697d-10e9-4e90-8e08-16215c1d6f37',
-          videoThumbnail: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&auto=format&fit=crop&q=80',
+          videoThumbnail: 'https://images.unsplash.com/photo-1758685733987-54952cd1c8c6?w=800&auto=format&fit=crop&q=80',
           description: 'Tổng ôn sơ đồ tư duy toàn bộ Bài 2 qua NotebookLM và thực hiện Bài kiểm tra cuối bài 20 phút chuẩn hóa theo cấu trúc Bộ Giáo dục & Đào tạo gồm 3 phần (Trắc nghiệm, Đúng/Sai, Trả lời ngắn).',
           keyPoints: [
             'Sơ đồ tư duy hệ thống hoá 3 nhóm nội dung: an toàn thiết bị, nguy cơ mất an toàn, quy tắc phòng thực hành.',
@@ -1055,7 +1055,7 @@ const COURSE_VL10_BAI3: Course = {
     title: 'Vật lý - Trường THPT Nguyễn Thượng Hiền',
     avatar: 'https://drive.google.com/thumbnail?id=1g1Iq45yMPEbzn43pzxtZNgXXJibYHTqM&sz=w400',
   },
-  thumbnail: 'https://images.unsplash.com/photo-1596496055215-c0f8f9d0e4d1?w=800&auto=format&fit=crop&q=80',
+  thumbnail: 'https://images.unsplash.com/photo-1508437239324-d3cba279d4d0?w=800&auto=format&fit=crop&q=80',
   category: 'Vật lý',
   rating: 4.92,
   ratingCount: 870,
@@ -1073,7 +1073,7 @@ const COURSE_VL10_BAI3: Course = {
           title: 'Phép đo trực tiếp, phép đo gián tiếp & Các loại sai số',
           duration: '16:00',
           videoUrl: 'https://drive.google.com/file/d/1CUrwGTSZK-HkuiSIYnbDnF1jUxEuQOCV/view?usp=sharing',
-          videoThumbnail: 'https://images.unsplash.com/photo-1596496055215-c0f8f9d0e4d1?w=800&auto=format&fit=crop&q=80',
+          videoThumbnail: 'https://images.unsplash.com/photo-1758295745926-88faff7ec2f2?w=800&auto=format&fit=crop&q=80',
           description: 'Phân biệt phép đo trực tiếp (đọc trực tiếp trên dụng cụ) và phép đo gián tiếp (tính qua công thức); nhận biết sai số hệ thống, sai số ngẫu nhiên và sai số dụng cụ.',
           keyPoints: [
             'Phép đo trực tiếp: đại lượng được đọc trực tiếp trên dụng cụ đo (đo chiều dài bằng thước, đọc số trên đồng hồ).',
@@ -1227,7 +1227,7 @@ const COURSE_VL10_BAI3: Course = {
           title: 'Cách tính sai số tuyệt đối, sai số tỉ đối & Ghi kết quả đo',
           duration: '16:00',
           videoUrl: 'https://drive.google.com/file/d/16U-gEdGei-JtS9WDd_AnwysPF5-Tmmog/view?usp=drive_link',
-          videoThumbnail: 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=800&auto=format&fit=crop&q=80',
+          videoThumbnail: 'https://images.unsplash.com/photo-1789977011797-c153a4b69261?w=800&auto=format&fit=crop&q=80',
           description: 'Tính sai số tỉ đối δA = (ΔA/Ā).100%, quy tắc cộng sai số tuyệt đối cho tổng/hiệu, quy tắc cộng sai số tỉ đối cho tích/thương và cách ghi kết quả đo.',
           keyPoints: [
             'Sai số tỉ đối: δA = (ΔA/Ā).100% — đo bằng phần trăm so với giá trị trung bình.',
@@ -1323,7 +1323,7 @@ const COURSE_VL10_BAI3: Course = {
           title: 'Sơ đồ tư duy tổng hợp & Bài kiểm tra cuối bài',
           duration: '18:00',
           videoUrl: 'https://notebook.google.com/notebook/3bd6e582-08b6-4dc1-8fb8-71ebb4cc292f/artifact/9a91817a-e815-4c05-bb16-dd5322625f8c',
-          videoThumbnail: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&auto=format&fit=crop&q=80',
+          videoThumbnail: 'https://images.unsplash.com/photo-1559819614-8e87b90b8e9b?w=800&auto=format&fit=crop&q=80',
           description: 'Tổng ôn sơ đồ tư duy toàn bộ Bài 3 qua NotebookLM và thực hiện Bài kiểm tra cuối bài 20 phút chuẩn hóa theo cấu trúc Bộ Giáo dục & Đào tạo gồm 3 phần (Trắc nghiệm, Đúng/Sai, Trả lời ngắn).',
           keyPoints: [
             'Sơ đồ tư duy hệ thống hoá 2 nhóm nội dung: phép đo & phân loại sai số, các cách tính sai số.',

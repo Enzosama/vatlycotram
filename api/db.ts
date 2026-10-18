@@ -22,6 +22,8 @@ const EMPTY_DB = {
   customExams: [],
   customQuizzes: [],
   topStudents: [],
+  // studentId -> email học sinh tự bổ sung (object, không phải array)
+  studentEmails: {} as Record<string, string>,
 };
 
 function hasBlobToken(): boolean {
@@ -32,6 +34,14 @@ function normalize(data: unknown) {
   if (!data || typeof data !== 'object') return EMPTY_DB;
   const d = data as Record<string, unknown>;
   const arr = (k: string) => (Array.isArray(d[k]) ? d[k] : []);
+  // studentEmails là object map, không phải array -> chuẩn hoá riêng
+  const rawEmails = d.studentEmails;
+  const studentEmails: Record<string, string> = {};
+  if (rawEmails && typeof rawEmails === 'object' && !Array.isArray(rawEmails)) {
+    for (const [k, v] of Object.entries(rawEmails as Record<string, unknown>)) {
+      if (typeof v === 'string' && v.trim()) studentEmails[k] = v.trim().toLowerCase();
+    }
+  }
   return {
     submissions: arr('submissions'),
     grades: arr('grades'),
@@ -40,6 +50,7 @@ function normalize(data: unknown) {
     customExams: arr('customExams'),
     customQuizzes: arr('customQuizzes'),
     topStudents: arr('topStudents'),
+    studentEmails,
   };
 }
 

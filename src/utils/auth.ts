@@ -99,11 +99,51 @@ export function getStudentEmail(studentId: string): string {
   return findStudentById(studentId)?.email || '';
 }
 
-/** Lưu email HS tự nhập bổ sung vào localStorage. */
+/**
+ * Lưu email HS tự nhập bổ sung: ghi localStorage (đọc ngay trong máy này)
+ * VÀ đẩy lên DB dùng chung để server gửi được OTP cho học sinh thiếu email
+ * trong danh sách gốc (91/138 em). Không chặn UI nếu mạng lỗi.
+ */
 export function saveStudentEmail(studentId: string, email: string): void {
+  const normalized = email.toLowerCase().trim();
   const map = readMap(AUTH_KEYS.EMAILS);
-  map[studentId] = email.toLowerCase().trim();
+  map[studentId] = normalized;
   writeMap(AUTH_KEYS.EMAILS, map);
+  // Đẩy lên DB dùng chung (fire-and-forget) — để api/send-otp tra được
+  void syncStudentEmailsToRemote();
+}
+
+/**
+ * Ghi thẳng mật khẩu mới (dùng cho luồng quên mật khẩu qua OTP đã xác thực).
+ * Ghi cả map mật khẩu và cờ đã đổi mật khẩu, có try/catch.
+ */
+export function setStudentPasswordDirect(studentId: string, newPassword: string): void {
+  const pwdMap = readMap(AUTH_KEYS.PASSWORDS);
+  pwdMap[studentId] = newPassword;
+  writeMap(AUTH_KEYS.PASSWORDS, pwdMap);
+
+  const changedMap = readMap(AUTH_KEYS.PASSWORD_CHANGED);
+  changedMap[studentId] = '1';
+  writeMap(AUTH_KEYS.PASSWORD_CHANGED, changedMap);
+}
+
+/**
+ * Gom toàn bộ email học sinh đang có trên máy này và ghi lên DB dùng chung.
+ * Merge với dữ liệu remote hiện có để không ghi đè email của máy khác.
+ */
+export async function syncStudentEmailsToRemote(): Promise<void> {
+  if (typeof localStorage === 'undefined') return;
+  const localEmails = readMap(AUTH_KEYS.EMAILS);
+  if (Object.keys(localEmails).length === 0) return;
+  try {
+    const { loadRemote, saveRemote } = await import('../lib/remoteStore');
+    const db = await loadRemote();
+    db.studentEmails = { ...db.studentEmails, ...localEmails };
+    await saveRemote(db);
+  } catch (e) {
+    // Offline vẫn chạy — email còn nguyên trong localStorage
+    console.error(e);
+  }
 }
 
 // ==================== TÀI KHOẢN ĐÃ DÙNG TRÊN THIẾT BỊ NÀY ====================
@@ -395,6 +435,25 @@ export function teacherLogout(): void {
   } catch (e) {
     console.error(e);
   }
+}
+
+/** Email giáo viên (dùng cho luồng quên mật khẩu qua OTP). */
+export function getTeacherEmail(teacherId: string): string {
+  return findTeacherById(teacherId)?.email || '';
+}
+
+/**
+ * Ghi thẳng mật khẩu mới cho giáo viên (sau khi OTP đã xác thực).
+ * Có try/catch, ghi cả cờ đã đổi mật khẩu.
+ */
+export function setTeacherPasswordDirect(teacherId: string, newPassword: string): void {
+  const pwdMap = readTeacherMap(TEACHER_AUTH_KEYS.PASSWORDS);
+  pwdMap[teacherId] = newPassword;
+  writeTeacherMap(TEACHER_AUTH_KEYS.PASSWORDS, pwdMap);
+
+  const changedMap = readTeacherMap(TEACHER_AUTH_KEYS.PASSWORD_CHANGED);
+  changedMap[teacherId] = '1';
+  writeTeacherMap(TEACHER_AUTH_KEYS.PASSWORD_CHANGED, changedMap);
 }
 
 // ==================== HỒ SƠ CÁ NHÂN (tùy chỉnh) ====================

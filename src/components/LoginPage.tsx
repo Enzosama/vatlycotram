@@ -21,6 +21,7 @@ import {
   DEFAULT_PASSWORD,
   getStudentEmail,
   saveStudentEmail,
+  setStudentPasswordDirect,
   getKnownAccountsOnDevice,
   clearDeviceAuth,
   DeviceAccount,
@@ -265,15 +266,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
         setError(data.error || 'OTP không đúng hoặc đã hết hạn.');
         return;
       }
-      // Lưu mật khẩu mới vào localStorage (auth.ts đọc từ đây)
-      const mapKey = 'edulearn_auth_passwords_v1';
-      const pwdMap = JSON.parse(localStorage.getItem(mapKey) || '{}');
-      pwdMap[data.studentId] = otpNewPwd;
-      localStorage.setItem(mapKey, JSON.stringify(pwdMap));
-      const changedKey = 'edulearn_auth_pwd_changed_v1';
-      const changedMap = JSON.parse(localStorage.getItem(changedKey) || '{}');
-      changedMap[data.studentId] = '1';
-      localStorage.setItem(changedKey, JSON.stringify(changedMap));
+      // Lưu mật khẩu mới vào localStorage qua helper (có try/catch)
+      setStudentPasswordDirect(data.studentId, otpNewPwd);
       setNotice('Đặt lại mật khẩu thành công! Vui lòng đăng nhập bằng mật khẩu mới.');
       setStep(1);
       setOtpStep('email');

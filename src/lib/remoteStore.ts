@@ -17,6 +17,8 @@ export interface RemoteDB {
   customExams: unknown[];
   customQuizzes: unknown[];
   topStudents: unknown[];
+  /** studentId -> email học sinh tự bổ sung */
+  studentEmails: Record<string, string>;
 }
 
 const EMPTY_DB: RemoteDB = {
@@ -27,6 +29,7 @@ const EMPTY_DB: RemoteDB = {
   customExams: [],
   customQuizzes: [],
   topStudents: [],
+  studentEmails: {},
 };
 
 /** API có sẵn không (tránh gọi lặp lại khi đã biết offline). */
@@ -40,6 +43,14 @@ function isBrowser(): boolean {
 function normalize(data: unknown): RemoteDB {
   if (!data || typeof data !== 'object') return { ...EMPTY_DB };
   const d = data as Partial<RemoteDB>;
+  // studentEmails là object map -> chuẩn hoá riêng, loại giá trị rỗng
+  const rawEmails = d.studentEmails;
+  const studentEmails: Record<string, string> = {};
+  if (rawEmails && typeof rawEmails === 'object' && !Array.isArray(rawEmails)) {
+    for (const [k, v] of Object.entries(rawEmails as Record<string, unknown>)) {
+      if (typeof v === 'string' && v.trim()) studentEmails[k] = v.trim().toLowerCase();
+    }
+  }
   return {
     submissions: Array.isArray(d.submissions) ? d.submissions : [],
     grades: Array.isArray(d.grades) ? d.grades : [],
@@ -48,6 +59,7 @@ function normalize(data: unknown): RemoteDB {
     customExams: Array.isArray(d.customExams) ? d.customExams : [],
     customQuizzes: Array.isArray(d.customQuizzes) ? d.customQuizzes : [],
     topStudents: Array.isArray(d.topStudents) ? d.topStudents : [],
+    studentEmails,
   };
 }
 

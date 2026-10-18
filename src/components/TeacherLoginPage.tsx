@@ -10,15 +10,18 @@ import {
   ShieldCheck,
   AlertCircle,
   CheckCircle2,
+  Mail,
 } from 'lucide-react';
 import { TEACHER_ACCOUNTS, TEACHER_DEFAULT_PASSWORD, TeacherAccount } from '../data/teacherAccounts';
 import {
   teacherLogin,
   changeTeacherPassword,
+  setTeacherPasswordDirect,
+  getTeacherEmail,
 } from '../utils/auth';
 import { getSchoolOptions, SchoolOption } from '../utils/auth';
 
-type Step = 1 | 2 | 3;
+type Step = 1 | 2 | 3 | 4;
 
 interface TeacherLoginPageProps {
   onLoginSuccess: (teacher: TeacherAccount) => void;
@@ -39,6 +42,16 @@ export const TeacherLoginPage: React.FC<TeacherLoginPageProps> = ({ onLoginSucce
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+
+  // Quên mật khẩu (OTP) — bước 4
+  const [otpEmail, setOtpEmail] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [otpNewPwd, setOtpNewPwd] = useState('');
+  const [otpConfirmPwd, setOtpConfirmPwd] = useState('');
+  const [otpStep, setOtpStep] = useState<'email' | 'code'>('email');
+  const [otpLoading, setOtpLoading] = useState(false);
+  // Giáo viên chưa có email -> không thể tự đặt lại
+  const [noEmailNotice, setNoEmailNotice] = useState(false);
 
   const selectedSchool = schools.find((s) => s.code === schoolCode);
 
@@ -92,11 +105,113 @@ export const TeacherLoginPage: React.FC<TeacherLoginPageProps> = ({ onLoginSucce
   const goBack = () => {
     setError('');
     setNotice('');
+    setNoEmailNotice(false);
     if (step === 2) setStep(1);
     else if (step === 3) setStep(2);
+    else if (step === 4) {
+      setStep(1);
+      setOtpStep('email');
+      setOtpEmail('');
+      setOtpCode('');
+      setOtpNewPwd('');
+      setOtpConfirmPwd('');
+    }
   };
 
-  const stepTitle = ['', 'Chọn trường', 'Nhập mật khẩu', 'Đổi mật khẩu'][step];
+  // Mở bước quên mật khẩu: nếu giáo viên chưa có email -> báo rõ, không giả vờ
+  const handleOpenForgot = () => {
+    setError('');
+    setNotice('');
+    if (teacher && !getTeacherEmail(teacher.id)) {
+      setNoEmailNotice(true);
+      return;
+    }
+    setNoEmailNotice(false);
+    setOtpEmail(teacher ? getTeacherEmail(teacher.id) : '');
+    setOtpStep('email');
+    setStep(4);
+  };
+
+  const handleSendTeacherOtp = async () => {
+    setError('');
+    setNotice('');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(otpEmail.trim())) {
+      setError('Vui lòng nhập email hợp lệ.');
+      return;
+    }
+    setOtpLoading(true);
+    try {
+      const res = await fetch('/api/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: otpEmail.trim(), role: 'teacher' }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setError(data.error || 'Không thể gửi OTP. Vui lòng thử lại.');
+        return;
+      }
+      setNotice(data.message || 'Nếu email tồn tại, mã OTP đã được gửi.');
+      setOtpStep('code');
+    } catch (e) {
+      setError('Không thể kết nối máy chủ. Vui lòng thử lại.');
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleVerifyTeacherOtp = async () => {
+    setError('');
+    setNotice('');
+    if (otpCode.length !== 6) {
+      setError('Mã OTP gồm 6 chữ số.');
+      return;
+    }
+    if (otpNewPwd.length < 6) {
+      setError('Mật khẩu mới phải có ít nhất 6 ký tự.');
+      return;
+    }
+    if (otpNewPwd === TEACHER_DEFAULT_PASSWORD) {
+      setError('Mật khẩu mới phải khác mật khẩu mặc định.');
+      return;
+    }
+    if (otpNewPwd !== otpConfirmPwd) {
+      setError('Xác nhận mật khẩu không khớp.');
+      return;
+    }
+    setOtpLoading(true);
+    try {
+      const res = await fetch('/api/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: otpEmail.trim(), otp: otpCode, newPassword: otpNewPwd }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setError(data.error || 'OTP không đúng hoặc đã hết hạn.');
+        return;
+      }
+      if (data.role !== 'teacher' || !data.teacherId) {
+        setError('OTP này không thuộc tài khoản giáo viên.');
+        return;
+      }
+      // Lưu mật khẩu mới vào localStorage (auth.ts đọc từ đây)
+      setTeacherPasswordDirect(data.teacherId, otpNewPwd);
+      const t = TEACHER_ACCOUNTS.find((x) => x.id === data.teacherId);
+      if (t) {
+        onLoginSuccess(t);
+      } else {
+        setNotice('Đặt lại mật khẩu thành công! Vui lòng đăng nhập lại.');
+        setStep(1);
+      }
+    } catch (e) {
+      setError('Không thể kết nối máy chủ. Vui lòng thử lại.');
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const stepTitle = ['', 'Chọn trường', 'Nhập mật khẩu', 'Đổi mật khẩu', 'Quên mật khẩu'][step];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-sky-50 via-white to-blue-50 flex flex-col">
@@ -129,11 +244,12 @@ export const TeacherLoginPage: React.FC<TeacherLoginPageProps> = ({ onLoginSucce
             {/* Stepper */}
             <div className="px-5 sm:px-6 pt-5 pb-4 border-b border-slate-100 bg-slate-50/60">
               <div className="flex items-center justify-between gap-1">
-                {[1, 2, 3].map((s) => {
+                {[1, 2, 3, 4].map((s) => {
                   const labels: Record<number, string> = {
                     1: 'Trường',
                     2: 'Mật khẩu',
                     3: 'Đổi MK',
+                    4: 'Quên MK',
                   };
                   const isActive = s === step;
                   const isDone = s < step;
@@ -159,7 +275,7 @@ export const TeacherLoginPage: React.FC<TeacherLoginPageProps> = ({ onLoginSucce
                           {labels[s]}
                         </span>
                       </div>
-                      {s < 3 && (
+                      {s < 4 && (
                         <div
                           className={`h-0.5 flex-1 mx-1 rounded-full ${
                             isDone ? 'bg-emerald-400' : 'bg-slate-200'
@@ -176,7 +292,7 @@ export const TeacherLoginPage: React.FC<TeacherLoginPageProps> = ({ onLoginSucce
             <div className="p-5 sm:p-6">
               <h2 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
                 <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-blue-50 text-blue-700 text-[11px] font-bold border border-blue-100">
-                  Bước {step}/3
+                  Bước {step}/4
                 </span>
                 {stepTitle}
               </h2>
@@ -320,6 +436,23 @@ export const TeacherLoginPage: React.FC<TeacherLoginPageProps> = ({ onLoginSucce
                       <span>Đăng nhập</span>
                     </button>
                   </div>
+
+                  <button
+                    id="teacher-forgot-btn"
+                    onClick={handleOpenForgot}
+                    className="w-full text-center text-xs font-semibold text-blue-700 hover:text-blue-800 hover:underline py-1"
+                  >
+                    Quên mật khẩu?
+                  </button>
+
+                  {noEmailNotice && (
+                    <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-xs">
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                      <span>
+                        Tài khoản này chưa có email đặt lại mật khẩu. Vui lòng liên hệ Cô Trần Lê Ngọc Trâm để được cấp lại.
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -381,6 +514,125 @@ export const TeacherLoginPage: React.FC<TeacherLoginPageProps> = ({ onLoginSucce
                     <ShieldCheck className="w-4 h-4" />
                     <span>Xác nhận đổi mật khẩu & đăng nhập</span>
                   </button>
+                </div>
+              )}
+
+              {/* Bước 4: Quên mật khẩu (OTP qua email) */}
+              {step === 4 && (
+                <div className="space-y-4">
+                  {otpStep === 'email' ? (
+                    <>
+                      <p className="text-xs text-slate-600">
+                        Nhập email đã đăng ký của bạn. Hệ thống sẽ gửi mã OTP 6 số để đặt lại mật khẩu.
+                      </p>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                          Email đã đăng ký
+                        </label>
+                        <div className="relative">
+                          <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                          <input
+                            id="teacher-forgot-email-input"
+                            type="email"
+                            value={otpEmail}
+                            onChange={(e) => setOtpEmail(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') handleSendTeacherOtp(); }}
+                            placeholder="email@gmail.com"
+                            className="w-full bg-white border border-slate-300 rounded-lg pl-9 pr-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={goBack}
+                          className="flex items-center gap-1 px-3.5 py-2 rounded-lg text-xs font-semibold text-slate-600 border border-slate-300 hover:bg-slate-50 transition"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                          <span>Quay lại</span>
+                        </button>
+                        <button
+                          id="teacher-forgot-send-otp-btn"
+                          onClick={handleSendTeacherOtp}
+                          disabled={otpLoading}
+                          className="flex-1 flex items-center justify-center gap-2 bg-blue-700 hover:bg-blue-800 disabled:bg-slate-300 text-white text-sm font-bold py-2.5 rounded-lg transition-colors shadow-xs"
+                        >
+                          {otpLoading ? <span>Đang gửi...</span> : <><Mail className="w-4 h-4" /><span>Gửi mã OTP</span></>}
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-xs text-slate-600">
+                        Nhập mã OTP 6 số đã gửi đến <strong>{otpEmail}</strong> và đặt mật khẩu mới.
+                      </p>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                          Mã OTP (6 số)
+                        </label>
+                        <input
+                          id="teacher-forgot-otp-input"
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={6}
+                          value={otpCode}
+                          onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                          placeholder="000000"
+                          className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2.5 text-center text-lg font-bold tracking-[0.5em] text-slate-800 placeholder-slate-300 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                          Mật khẩu mới (tối thiểu 6 ký tự)
+                        </label>
+                        <input
+                          id="teacher-forgot-new-pwd"
+                          type="password"
+                          value={otpNewPwd}
+                          onChange={(e) => setOtpNewPwd(e.target.value)}
+                          placeholder="Nhập mật khẩu mới"
+                          className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                          Xác nhận mật khẩu mới
+                        </label>
+                        <input
+                          id="teacher-forgot-confirm-pwd"
+                          type="password"
+                          value={otpConfirmPwd}
+                          onChange={(e) => setOtpConfirmPwd(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') handleVerifyTeacherOtp(); }}
+                          placeholder="Nhập lại mật khẩu mới"
+                          className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => { setOtpStep('email'); setError(''); setNotice(''); }}
+                          className="flex items-center gap-1 px-3.5 py-2 rounded-lg text-xs font-semibold text-slate-600 border border-slate-300 hover:bg-slate-50 transition"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                          <span>Đổi email</span>
+                        </button>
+                        <button
+                          id="teacher-forgot-verify-btn"
+                          onClick={handleVerifyTeacherOtp}
+                          disabled={otpLoading}
+                          className="flex-1 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white text-sm font-bold py-2.5 rounded-lg transition-colors shadow-xs"
+                        >
+                          {otpLoading ? <span>Đang xử lý...</span> : <><ShieldCheck className="w-4 h-4" /><span>Xác nhận & đặt lại</span></>}
+                        </button>
+                      </div>
+                      <button
+                        onClick={handleSendTeacherOtp}
+                        disabled={otpLoading}
+                        className="w-full text-center text-xs font-semibold text-blue-700 hover:text-blue-800 hover:underline py-1 disabled:text-slate-400"
+                      >
+                        Không nhận được mã? Gửi lại
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
             </div>
